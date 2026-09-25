@@ -71,6 +71,9 @@ module.exports = {
   examples: [
     'GET /api/puppetHeads?play=火焰山&status=可演出 查询某剧目可用偶头',
     'POST /api/tourBoxes 创建巡演装箱单',
-    'POST /api/lossReports 登记返场缺损或遗失'
+    'POST /api/lossReports 登记返场缺损或遗失',
+    'POST /api/wear/orders 登记一场演出并累计损耗（轻场1点/分、常演2点/分、重场3点/分）',
+    'POST /api/wear/maintenances 保养单写明处理人和前后读数后回台',
+    'GET /api/wear/heads/:puppetHeadId/ledger 查看偶头损耗台账'
   ]
 };

@@ -1,39 +1,15 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const { execFileSync } = require('child_process');
 const { randomUUID } = require('crypto');
 const config = require('./project.config');
+const db = require('./db');
+const createWearRouter = require('./wear/routes');
+
+const { sqlValue, runSql, select, now } = db;
 
 const app = express();
 const PORT = process.env.PORT || config.port;
-const DATA_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA_DIR, 'app.db');
 
 app.use(express.json({ limit: '2mb' }));
-
-function sqlValue(value) {
-  if (value === null || value === undefined) return 'NULL';
-  return "'" + String(value).replaceAll("'", "''") + "'";
-}
-
-function runSql(sql) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  return execFileSync('sqlite3', [DB_FILE], {
-    input: sql,
-    encoding: 'utf8'
-  });
-}
-
-function select(sql) {
-  const output = runSql('.mode json\n' + sql);
-  if (!output.trim()) return [];
-  return JSON.parse(output);
-}
-
-function now() {
-  return new Date().toISOString();
-}
 
 function toRecord(row) {
   const data = JSON.parse(row.data || '{}');
@@ -186,7 +162,29 @@ function applyQuery(records, query) {
   });
 }
 
-initDb();
+// 损耗台账联动偶头档案：停用/回台时回写 puppetHeads 状态并记事件。
+function syncHeadStatus(puppetHeadId, { status, currentUsable, action, note, data }) {
+  const head = loadRecord('puppetHeads', puppetHeadId);
+  if (!head) return;
+  const nextData = { ...head, status, currentUsable };
+  delete nextData.id;
+  delete nextData.collection;
+  delete nextData.createdAt;
+  delete nextData.updatedAt;
+  saveRecord('puppetHeads', puppetHeadId, nextData, status);
+  insertEvent({
+    recordId: puppetHeadId,
+    collection: 'puppetHeads',
+    action,
+    status,
+    actor: 'wear-ledger',
+    note,
+    data
+  });
+}
+
+// 入口：偶头损耗台账（演出单 / 保养单 / 放行状态），须挂在通用 /api/:collection 之前。
+app.use('/api/wear', createWearRouter({ syncHeadStatus }));
 
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: config.title, port: PORT });
@@ -358,6 +356,12 @@ app.use((error, req, res, next) => {
   res.status(error.status || 500).json({ error: error.message || 'server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(config.title + ' API running at http://localhost:' + PORT);
+db.init().then(() => {
+  initDb();
+  app.listen(PORT, () => {
+    console.log(config.title + ' API running at http://localhost:' + PORT);
+  });
+}).catch((error) => {
+  console.error('failed to open database:', error);
+  process.exit(1);
 });
