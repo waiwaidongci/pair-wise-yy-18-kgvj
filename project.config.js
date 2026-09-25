@@ -32,6 +32,20 @@ module.exports = {
       required: ['showName', 'venue', 'play', 'headIds', 'accessoryIds'],
       titleFields: ['showName', 'play']
     },
+    rehearsalSessions: {
+      label: '排演损耗单',
+      defaultStatus: '进行中',
+      statuses: ['进行中', '已结束'],
+      required: ['puppetHeadId', 'level', 'minutes'],
+      titleFields: ['puppetHeadId', 'level']
+    },
+    maintenanceOrders: {
+      label: '保养单',
+      defaultStatus: '已回台',
+      statuses: ['已回台'],
+      required: ['puppetHeadId', 'handler', 'readingBefore', 'readingAfter'],
+      titleFields: ['handler', 'puppetHeadId']
+    },
     lossReports: {
       label: '缺损追踪',
       defaultStatus: '待处理',
@@ -70,6 +84,9 @@ module.exports = {
   ],
   examples: [
     'GET /api/puppetHeads?play=火焰山&status=可演出 查询某剧目可用偶头',
+    'POST /api/rehearsals 登记排演新单（偶头、场次等级、分钟数、修补次数）',
+    'POST /api/maintenance 登记保养单（处理人 + 前后读数）后偶头回台',
+    'GET /api/rehearsals/ledger/:puppetHeadId 查看偶头损耗台账',
     'POST /api/tourBoxes 创建巡演装箱单',
     'POST /api/lossReports 登记返场缺损或遗失'
   ]
